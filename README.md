@@ -1,8 +1,8 @@
 <div align="center">
 
-# ⛽ Control Combustibles Portuarios
+# ⛽ Control Combustibles Portuarios (SaaS)
 
-**Plataforma SaaS para gestión de combustibles en equipos y vehículos portuarios**
+**Plataforma SaaS multi-tenant para gestión de consumo de combustible en equipos y vehículos portuarios**
 
 [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -16,194 +16,238 @@
 
 ## 📌 Descripción
 
-Sistema pensado para operaciones portuarias que necesitan controlar el consumo de combustible por equipo, turno, área y tipo de combustible. Centraliza equipos, abastecimientos, historial operativo, dashboard ejecutivo y administración de usuarios con perfiles y permisos desde una interfaz modular por ventanas.
+Aplicación completa (frontend + backend) para operar un **SaaS** de control de combustibles:
 
-## Caracteristicas
-
-- Login de acceso a la plataforma.
-- Dashboard ejecutivo con KPIs operacionales.
-- Registro maestro de equipos y vehiculos.
-- Registro de abastecimientos enlazado a equipos.
-- Historial con busqueda, filtros, paginacion y exportacion CSV.
-- Modulo de administracion SaaS.
-- CRUD de usuarios.
-- CRUD de perfiles de acceso.
-- Permisos por tarea.
-- Gestor de contrasenas temporales.
-- Datos demo precargados para revisar la plataforma sin backend.
-
-## Modulos
-
-### Dashboard
-
-Visualiza indicadores clave:
-
-- Consumo total.
-- Equipos activos.
-- Promedio por despacho.
-- Participacion por tipo de combustible.
-- Ranking de consumo por equipo.
-- Distribucion Diesel / Gas.
-
-### Equipos
-
-Registro maestro para equipos y vehiculos portuarios:
-
-- Código operacional y nombre
-- Tipo, estado y área base
-- Combustible principal
-- Meta de consumo por turno
-- Responsable y observaciones
+- **Multi-tenant** por `tenantId` (cada terminal/cliente ve solo sus datos).
+- **Autenticación** con **JWT**.
+- **Autorización** por **RBAC** basado en *permisos*.
+- Persistencia en **MongoDB** (Mongoose).
+- API **GraphQL (Apollo Server)**.
+- Módulos operacionales:
+  - Dashboard ejecutivo (KPIs)
+  - Registro maestro de equipos
+  - Registro de abastecimientos e historial
+  - Reportes de consumo y alertas por meta
+  - Administración SaaS (usuarios/perfiles/permisos)
+  - Importación masiva de equipos desde CSV
+  - Auditoría de acciones administrativas
 
 ---
 
-## ⛽ Registro de Abastecimiento
+## ✨ Funcionalidades principales
 
-Cada carga registra:
+### Dashboard ejecutivo
+- KPIs operacionales agregados desde registros de combustible.
+- Consumo total, distribución por tipo (Diesel/Gas), equipos activos, promedio por despacho.
 
-- Fecha y hora.
-- Equipo registrado.
-- Tipo de combustible.
-- Cantidad.
-- Unidad.
-- Operador o turno.
-- Ubicacion operacional.
-- Observaciones.
+### Equipos (maestro)
+- CRUD de equipos/vehículos.
+- Campos clave: código, tipo, estado, área, combustible principal y meta de consumo.
 
-### Historial
+### Historial de abastecimientos
+- Consulta de `FuelRecord` con filtros en reportes (rango de fechas, equipo, área, combustible).
 
-Consulta operativa de abastecimientos:
+### Reportes
+- `consumptionReport(filter)`:
+  - Agrega consumo por equipo/área/combustible.
+- `consumptionAlerts(filter)`:
+  - Calcula varianza vs `consumptionTarget` y devuelve alertas (solo cuando la varianza es positiva).
 
-- Busqueda por equipo, operador, ubicacion o notas.
-- Filtro por combustible.
-- Filtro por rango de fechas.
-- Paginacion.
-- Exportacion CSV.
+### Administración SaaS (Security + RBAC)
+- Gestión de:
+  - Perfiles (`profiles` / `createProfile` / `updateProfile` / `deleteProfile`)
+  - Usuarios (`users` / `createUser` / `updateUser` / `deleteUser`)
+  - Reset de contraseñas con estados tipo *INVITED*
+- RBAC: cada acción protegida requiere un permiso específico (ej. `admin:users`, `equipment:manage`, `history:view`).
 
-### Administracion
+### Auditoría
+- Se registra en `AuditLog` acciones como LOGIN, CREATE/UPDATE/DELETE e IMPORT_CSV.
 
-Modulo SaaS para gestion de usuarios y seguridad:
-
-- Crear, editar y eliminar usuarios.
-- Crear, editar y eliminar perfiles.
-- Asignar perfiles a usuarios.
-- Asignar permisos por tarea.
-- Resetear contrasenas.
-- Generar contrasenas temporales.
-- Control de estados: activo, invitado y suspendido.
-
-## Stack Tecnico
-
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- Recharts
-- React Hook Form
-- Lucide React
-- pnpm
-
-## Requisitos
-
-- **Node.js** `>= 18`
-- **pnpm** instalado globalmente
+### Importación CSV
+- `importEquipmentCsv(csv: String!)`:
+  - Crea/actualiza equipos por `code`.
+  - Campos esperados en CSV (por encabezados): `code,name,type,status,area,fuelType,consumptionTarget,plate,operator,notes`.
 
 ---
 
-## 🚀 Instalación y Desarrollo
+## 🧱 Arquitectura
+
+- **Frontend**: React + TypeScript + Vite + Tailwind
+  - Consume GraphQL con `fetch`.
+  - Usa `VITE_GRAPHQL_URL` para definir la URL del endpoint.
+
+- **Backend API**: Node + Apollo Server (GraphQL)
+  - Definición de schema en `server/schema.ts`.
+  - Implementación en `server/resolvers.ts`.
+  - Autenticación/seguridad en `server/auth.ts`.
+
+- **Base de datos**: MongoDB + Mongoose
+  - Modelos en `server/models.ts`.
+
+- **Multi-tenant**:
+  - Todo query/mutación está filtrado por `tenantId`.
+  - El `tenantId` proviene del JWT del usuario autenticado.
+
+---
+
+## 🔐 Autenticación y flujo de sesión
+
+1. Login: se ejecuta el GraphQL mutation `login(input)`.
+2. Backend valida credenciales (bcrypt) y firma un **JWT**.
+3. El frontend guarda el token.
+4. Para cada request GraphQL, se envía:
+
+- Header: `Authorization: Bearer <token>`
+
+El backend inyecta `context.user` y aplica RBAC con `requirePermission()`.
+
+---
+
+## 🧩 Permisos (RBAC)
+
+Permisos actuales (definidos en `server/models.ts`):
+
+- `dashboard:view`
+- `equipment:view`
+- `equipment:manage`
+- `fuel:create`
+- `history:view`
+- `history:export`
+- `admin:users`
+- `admin:profiles`
+- `admin:security`
+
+---
+
+## 🌐 Endpoints
+
+### GraphQL
+- URL por defecto: `http://localhost:4000/`
+
+---
+
+## ⚙️ Variables de entorno
+
+En el backend (`server/config.ts`) se soportan:
+
+- `PORT` (default: `4000`)
+- `MONGODB_URI` (default: `mongodb://127.0.0.1:27017/port-fuel-management`)
+- `JWT_SECRET` (default: `change-this-secret-in-production`)
+- `JWT_EXPIRES_IN` (default: `8h`)
+- `SEED_DEMO_DATA` (default: `true`)
+
+En el frontend (`src/api/graphql.ts`) se soporta:
+
+- `VITE_GRAPHQL_URL` (default: `http://localhost:4000/`)
+
+---
+
+## 🚀 Instalación y desarrollo
+
+### 1) Instalar dependencias
 
 ```bash
-# Instalar dependencias
 pnpm install
-
-# Modo desarrollo
-pnpm run dev
 ```
 
-La aplicacion quedara disponible en:
+### 2) Levantar frontend y API
 
-```txt
-http://localhost:5173/
+**Opción recomendada (ambos):**
+
+```bash
+pnpm run dev:full
 ```
 
-## Credenciales Demo
+- `pnpm run dev:api`: arranca GraphQL + MongoDB seed opcional
+- `pnpm run dev`: arranca la UI
+
+### 3) Endpoints disponibles
+
+- UI: `http://localhost:5173/`
+- GraphQL: `http://localhost:4000/`
+
+---
+
+## 🧪 Credenciales demo (seed)
+
+Si `SEED_DEMO_DATA=true`, se crearán usuarios de ejemplo.
 
 ```txt
 Email: camila.rojas@puertonorte.cl
-Contrasena: Admin123!
+Contraseña: Admin123!
 ```
 
-## Scripts Disponibles
+```txt
+Email: diego.morales@puertonorte.cl
+Contraseña: Supervisor123!
+```
+
+---
+
+## 🧰 Scripts
 
 ```bash
 pnpm run dev
+pnpm run dev:api
+pnpm run dev:full
 pnpm run build
+pnpm run build:api
 pnpm run lint
 pnpm run preview
+pnpm run db:ping
 ```
 
-## Estructura Principal
+---
+
+## 📁 Estructura principal
 
 ```txt
+server/
+  auth.ts            # JWT + verificación + helpers requireAuth/requirePermission
+  config.ts          # env/config del backend
+  db.ts              # conexión Mongo
+  index.ts           # arranque Apollo Server
+  models.ts          # Mongoose models (Tenant/Profile/User/Equipment/FuelRecord/AuditLog)
+  resolvers.ts       # lógica GraphQL + multi-tenant + RBAC
+  schema.ts          # GraphQL schema/types
+  seed.ts            # precarga de datos demo (multi-tenant)
+
 src/
+  api/graphql.ts     # cliente GraphQL y queries/mutations
+  components/        # UI por módulo (Dashboard/Equipos/Historial/Admin)
+  types/             # tipos TS compartidos
   App.tsx
-  components/
-    AdminUsers.tsx
-    Dashboard.tsx
-    EquipmentRegistry.tsx
-    FuelForm.tsx
-    FuelTable.tsx
-  types/
-    index.ts
+  main.tsx
 ```
 
-## Modelo de Datos
+---
 
-La aplicacion incluye tipos para:
+## 🗃️ Modelo de datos (resumen)
 
-- Equipos.
-- Estados de equipos.
-- Registros de combustible.
-- Usuarios.
-- Roles.
-- Perfiles administrativos.
-- Permisos por tarea.
+- **Tenant**: terminal/cliente SaaS.
+- **Profile**: perfil administrativo (incluye permisos y flag `isSystem`).
+- **User**: usuario, pertenece a un `tenantId` y tiene `profileId`.
+- **Equipment**: equipo/vehículo con `consumptionTarget`.
+- **FuelRecord**: registro de abastecimiento (timestamp, máquina, combustible, cantidad, etc.).
+- **AuditLog**: auditoría de acciones.
 
-Actualmente los datos se mantienen en memoria dentro del frontend.
+---
 
-## Seguridad
-
-El login, usuarios, perfiles y gestor de contrasenas funcionan como prototipo frontend. Para un entorno productivo se recomienda implementar:
-
-- Backend de autenticacion.
-- Hash seguro de contrasenas.
-- Tokens de sesion.
-- Persistencia en base de datos.
-- Control de permisos en backend.
-- Auditoria de accesos.
-- Recuperacion y rotacion segura de credenciales.
-
-## Validacion
-
-El proyecto fue validado con:
+## ✅ Validación
 
 ```bash
 pnpm run lint
 pnpm run build
+pnpm run build:api
 ```
 
-## Roadmap Sugerido
+---
 
-- Persistencia con base de datos.
-- API REST o GraphQL.
-- Autenticacion real con JWT o sesiones seguras.
-- Auditoria de cambios administrativos.
-- Reportes por periodo, equipo y area.
-- Alertas por consumo sobre meta.
-- Multi-tenant por terminal portuario.
-- Importacion masiva de equipos desde CSV.
-- Exportacion avanzada a Excel/PDF.
+## 🧭 Roadmap sugerido
 
-## Estado del Proyecto
+- Persistencia avanzada y optimización de consultas de reportes (agregaciones Mongo).
+- Exportación avanzada a Excel/PDF.
+- Alertas programadas (jobs) y notificaciones.
+- Importación CSV validada (schema + errores por fila).
+- Endurecer seguridad (rotación de JWT/refresh, rate limiting, CORS policies).
 
-Prototipo funcional frontend para una plataforma SaaS de control de combustibles portuarios.
