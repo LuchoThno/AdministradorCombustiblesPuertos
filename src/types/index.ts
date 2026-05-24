@@ -41,13 +41,34 @@ export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'OPERATOR' | 'VIEWER';
 
 export type UserStatus = 'ACTIVE' | 'INVITED' | 'SUSPENDED';
 
+export type TaskPermission =
+  | 'dashboard:view'
+  | 'equipment:view'
+  | 'equipment:manage'
+  | 'fuel:create'
+  | 'history:view'
+  | 'history:export'
+  | 'admin:users'
+  | 'admin:profiles'
+  | 'admin:security';
+
+export type AdminProfile = {
+  id: string;
+  name: string;
+  description: string;
+  permissions: TaskPermission[];
+  isSystem?: boolean;
+};
+
 export type User = {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  profileId: string;
   status: UserStatus;
   organization: string;
   area: string;
+  mustChangePassword?: boolean;
   lastAccess?: Date;
 };
