@@ -21,6 +21,7 @@ Permite registrar abastecimientos, consultar consumos, administrar equipos y ges
 - Permisos por tarea.
 - Gestor de contrasenas temporales.
 - Datos demo precargados para revisar la plataforma sin backend.
+- Frontend conectado a la API GraphQL para login, usuarios, perfiles, equipos y registros.
 
 ## Modulos
 
@@ -93,6 +94,11 @@ Modulo SaaS para gestion de usuarios y seguridad:
 - React Hook Form
 - Lucide React
 - pnpm
+- Apollo Server
+- GraphQL
+- MongoDB / Mongoose
+- JWT
+- bcryptjs
 
 ## Requisitos
 
@@ -117,6 +123,60 @@ La aplicacion quedara disponible en:
 http://localhost:5173/
 ```
 
+## Backend GraphQL
+
+El proyecto incluye una primera base backend en `server/` con:
+
+- Apollo Server.
+- GraphQL.
+- MongoDB con Mongoose.
+- Autenticacion JWT.
+- Hash de contrasenas con bcrypt.
+- Auditoria de acciones administrativas.
+- Aislamiento multi-tenant por terminal portuario.
+- CRUD de usuarios, perfiles, equipos y abastecimientos.
+- Reportes de consumo con filtros.
+- Alertas por consumo sobre meta.
+- Importacion CSV basica de equipos.
+
+Configura las variables de entorno copiando `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Ejecuta solo la API:
+
+```bash
+pnpm run dev:api
+```
+
+La API GraphQL queda disponible en:
+
+```txt
+http://localhost:4000/
+```
+
+El frontend consume la API mediante:
+
+```txt
+VITE_GRAPHQL_URL=http://localhost:4000/
+```
+
+Ejecuta frontend y API juntos:
+
+```bash
+pnpm run dev:full
+```
+
+Prueba la conexion a MongoDB:
+
+```bash
+pnpm run db:ping
+```
+
+Para MongoDB Atlas, configura `MONGODB_URI` en `.env` reemplazando `<db_password>` por la contrasena real del usuario de base de datos. No subas `.env` al repositorio.
+
 ## Credenciales Demo
 
 ```txt
@@ -128,7 +188,11 @@ Contrasena: Admin123!
 
 ```bash
 pnpm run dev
+pnpm run dev:api
+pnpm run dev:full
+pnpm run db:ping
 pnpm run build
+pnpm run build:api
 pnpm run lint
 pnpm run preview
 ```
@@ -146,6 +210,16 @@ src/
     FuelTable.tsx
   types/
     index.ts
+server/
+  auth.ts
+  audit.ts
+  config.ts
+  db.ts
+  index.ts
+  models.ts
+  resolvers.ts
+  schema.ts
+  seed.ts
 ```
 
 ## Modelo de Datos
@@ -160,18 +234,17 @@ La aplicacion incluye tipos para:
 - Perfiles administrativos.
 - Permisos por tarea.
 
-Actualmente los datos se mantienen en memoria dentro del frontend.
+El frontend consume la API GraphQL y mantiene el estado en memoria solo como cache de UI durante la sesion. La persistencia real queda en MongoDB.
 
 ## Seguridad
 
-El login, usuarios, perfiles y gestor de contrasenas funcionan como prototipo frontend. Para un entorno productivo se recomienda implementar:
+El backend incorpora JWT y hash de contrasenas. Para un entorno productivo se recomienda reforzar:
 
-- Backend de autenticacion.
-- Hash seguro de contrasenas.
-- Tokens de sesion.
-- Persistencia en base de datos.
-- Control de permisos en backend.
-- Auditoria de accesos.
+- Rotacion de `JWT_SECRET`.
+- Refresh tokens o sesiones seguras.
+- Rate limiting en login.
+- Control de permisos exhaustivo en backend.
+- Auditoria ampliada de accesos.
 - Recuperacion y rotacion segura de credenciales.
 
 ## Validacion
@@ -181,20 +254,25 @@ El proyecto fue validado con:
 ```bash
 pnpm run lint
 pnpm run build
+pnpm run build:api
 ```
 
 ## Roadmap Sugerido
 
-- Persistencia con base de datos.
-- API REST o GraphQL.
-- Autenticacion real con JWT o sesiones seguras.
-- Auditoria de cambios administrativos.
-- Reportes por periodo, equipo y area.
-- Alertas por consumo sobre meta.
-- Multi-tenant por terminal portuario.
-- Importacion masiva de equipos desde CSV.
-- Exportacion avanzada a Excel/PDF.
+- [x] Persistencia con MongoDB.
+- [x] API GraphQL.
+- [x] Autenticacion con JWT.
+- [x] Hash de contrasenas.
+- [x] Auditoria de cambios administrativos.
+- [x] Reportes por periodo, equipo y area.
+- [x] Alertas por consumo sobre meta.
+- [x] Importacion basica de equipos desde CSV.
+- [x] Multi-tenant por terminal portuario con aislamiento por tenant en backend.
+- [x] Conectar frontend al backend GraphQL.
+- [ ] Exportacion avanzada a Excel/PDF.
+- [ ] Recuperacion de contrasena por email.
+- [ ] Tests automatizados de API y UI.
 
 ## Estado del Proyecto
 
-Prototipo funcional frontend para una plataforma SaaS de control de combustibles portuarios.
+Prototipo funcional frontend con base backend GraphQL/MongoDB para evolucionar a SaaS productivo.

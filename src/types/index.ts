@@ -13,6 +13,7 @@ export type EquipmentStatus = 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE';
 
 export type Equipment = {
   id: string;
+  tenantId?: string;
   code: string;
   name: string;
   type: EquipmentType;
@@ -27,6 +28,7 @@ export type Equipment = {
 
 export type FuelRecord = {
   id: string;
+  tenantId?: string;
   timestamp: Date;
   machineId: string;
   fuelType: FuelType;
@@ -54,6 +56,7 @@ export type TaskPermission =
 
 export type AdminProfile = {
   id: string;
+  tenantId?: string;
   name: string;
   description: string;
   permissions: TaskPermission[];
@@ -62,6 +65,7 @@ export type AdminProfile = {
 
 export type User = {
   id: string;
+  tenantId?: string;
   name: string;
   email: string;
   role: UserRole;

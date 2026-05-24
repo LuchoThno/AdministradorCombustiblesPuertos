@@ -20,17 +20,17 @@ import type { AdminProfile, TaskPermission, User, UserRole, UserStatus } from '.
 type AdminUsersProps = {
   users: User[];
   profiles: AdminProfile[];
-  onCreateUser: (user: Omit<User, 'id' | 'lastAccess'>, password: string) => void;
-  onUpdateUser: (id: string, user: Omit<User, 'id' | 'lastAccess'>) => void;
+  onCreateUser: (user: Omit<User, 'id' | 'tenantId' | 'lastAccess'>, password: string) => void;
+  onUpdateUser: (id: string, user: Omit<User, 'id' | 'tenantId' | 'lastAccess'>) => void;
   onDeleteUser: (id: string) => void;
   onResetPassword: (id: string, password: string) => void;
-  onCreateProfile: (profile: Omit<AdminProfile, 'id'>) => void;
-  onUpdateProfile: (id: string, profile: Omit<AdminProfile, 'id'>) => void;
+  onCreateProfile: (profile: Omit<AdminProfile, 'id' | 'tenantId'>) => void;
+  onUpdateProfile: (id: string, profile: Omit<AdminProfile, 'id' | 'tenantId'>) => void;
   onDeleteProfile: (id: string) => void;
 };
 
-type UserFormValues = Omit<User, 'id' | 'lastAccess'>;
-type ProfileFormValues = Omit<AdminProfile, 'id' | 'permissions'> & {
+type UserFormValues = Omit<User, 'id' | 'tenantId' | 'lastAccess'>;
+type ProfileFormValues = Omit<AdminProfile, 'id' | 'tenantId' | 'permissions'> & {
   permissions: Record<TaskPermission, boolean>;
 };
 
