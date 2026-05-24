@@ -1,178 +1,209 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { FuelRecord } from '../types';
+import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react';
+import type { Equipment, FuelRecord, FuelType } from '../types';
 
 type FuelTableProps = {
+  equipment: Equipment[];
   records: FuelRecord[];
   onExport: () => void;
 };
 
-export default function FuelTable({ records, onExport }: FuelTableProps) {
+const recordsPerPage = 8;
+
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(value);
+
+export default function FuelTable({ equipment, records, onExport }: FuelTableProps) {
   const [search, setSearch] = React.useState('');
   const [dateRange, setDateRange] = React.useState({ start: '', end: '' });
-  const [fuelType, setFuelType] = React.useState<string>('');
+  const [fuelType, setFuelType] = React.useState<FuelType | ''>('');
   const [currentPage, setCurrentPage] = React.useState(1);
-  const recordsPerPage = 10;
+  const equipmentByCode = React.useMemo(
+    () => new Map(equipment.map(item => [item.code, item])),
+    [equipment]
+  );
 
   const filteredRecords = records.filter(record => {
-    const matchesSearch = 
-      record.machineId.toLowerCase().includes(search.toLowerCase()) ||
-      record.operator.toLowerCase().includes(search.toLowerCase()) ||
-      record.location.toLowerCase().includes(search.toLowerCase());
-    
+    const query = search.toLowerCase();
+    const matchesSearch =
+      record.machineId.toLowerCase().includes(query) ||
+      record.operator.toLowerCase().includes(query) ||
+      record.location.toLowerCase().includes(query) ||
+      record.notes?.toLowerCase().includes(query) ||
+      equipmentByCode.get(record.machineId)?.name.toLowerCase().includes(query);
+
     const matchesFuelType = !fuelType || record.fuelType === fuelType;
-    
-    const matchesDate = (!dateRange.start || new Date(record.timestamp) >= new Date(dateRange.start)) &&
-                       (!dateRange.end || new Date(record.timestamp) <= new Date(dateRange.end));
+
+    const startDate = dateRange.start ? new Date(dateRange.start) : null;
+    const endDate = dateRange.end ? new Date(dateRange.end) : null;
+    endDate?.setHours(23, 59, 59, 999);
+
+    const matchesDate =
+      (!startDate || record.timestamp >= startDate) &&
+      (!endDate || record.timestamp <= endDate);
 
     return matchesSearch && matchesFuelType && matchesDate;
   });
 
   const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+  const hasRecords = filteredRecords.length > 0;
+  const firstResult = hasRecords ? (currentPage - 1) * recordsPerPage + 1 : 0;
+  const lastResult = hasRecords ? Math.min(currentPage * recordsPerPage, filteredRecords.length) : 0;
   const paginatedRecords = filteredRecords.slice(
     (currentPage - 1) * recordsPerPage,
     currentPage * recordsPerPage
   );
 
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, dateRange.start, dateRange.end, fuelType]);
+
+  React.useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Fuel Records</h2>
+    <div className="rounded-md border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">Historial operacional</p>
+          <h2 className="mt-1 text-2xl font-bold text-slate-950">Registros de abastecimiento</h2>
+        </div>
         <button
+          type="button"
           onClick={onExport}
-          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          disabled={records.length === 0}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Download className="w-4 h-4 mr-2" /> Export Data
+          <Download className="h-4 w-4" />
+          Exportar CSV
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div>
+      <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search records..."
+            placeholder="Buscar equipo, operador, zona..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-10 w-full rounded-md border border-slate-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
           />
-        </div>
-        <div>
-          <select
-            value={fuelType}
-            onChange={(e) => setFuelType(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
-          >
-            <option value="">All Fuel Types</option>
-            <option value="DIESEL">Diesel</option>
-            <option value="GAS">Gas</option>
-          </select>
-        </div>
-        <div>
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
-            placeholder="Start Date"
-          />
-        </div>
-        <div>
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
-            placeholder="End Date"
-          />
-        </div>
+        </label>
+
+        <select
+          value={fuelType}
+          onChange={(event) => setFuelType(event.target.value as FuelType | '')}
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+        >
+          <option value="">Todos los combustibles</option>
+          <option value="DIESEL">Diesel</option>
+          <option value="GAS">Gas</option>
+        </select>
+
+        <input
+          type="date"
+          value={dateRange.start}
+          onChange={(event) => setDateRange(prev => ({ ...prev, start: event.target.value }))}
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+        />
+
+        <input
+          type="date"
+          value={dateRange.end}
+          onChange={(event) => setDateRange(prev => ({ ...prev, end: event.target.value }))}
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+        />
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-white">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date & Time
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Machine ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Fuel Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Quantity
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Operator
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Location
-              </th>
+              {['Fecha', 'Equipo', 'Tipo', 'Combustible', 'Cantidad', 'Operador', 'Ubicacion', 'Nota'].map(header => (
+                <th key={header} className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedRecords.map((record) => (
-              <tr key={record.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {paginatedRecords.length > 0 ? paginatedRecords.map((record) => (
+              <tr key={record.id} className="hover:bg-slate-50">
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">
                   {format(record.timestamp, 'yyyy-MM-dd HH:mm')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {record.machineId}
+                <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-950">
+                  <span className="block">{record.machineId}</span>
+                  <span className="block text-xs font-medium text-slate-500">
+                    {equipmentByCode.get(record.machineId)?.name ?? 'No registrado'}
+                  </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    record.fuelType === 'DIESEL' 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-green-100 text-green-800'
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">
+                  {equipmentByCode.get(record.machineId)?.type ?? '-'}
+                </td>
+                <td className="whitespace-nowrap px-5 py-4 text-sm">
+                  <span className={`inline-flex rounded-md px-2 py-1 text-xs font-bold ${
+                    record.fuelType === 'DIESEL'
+                      ? 'bg-cyan-50 text-cyan-700'
+                      : 'bg-emerald-50 text-emerald-700'
                   }`}>
                     {record.fuelType}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {record.quantity} {record.unit}
+                <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-950">
+                  {formatNumber(record.quantity)} {record.unit === 'LITERS' ? 'L' : 'gal'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">
                   {record.operator}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-700">
                   {record.location}
                 </td>
+                <td className="min-w-48 px-5 py-4 text-sm text-slate-500">
+                  {record.notes || 'Sin observaciones'}
+                </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={8} className="px-5 py-12 text-center text-sm text-slate-500">
+                  No hay registros para los filtros seleccionados.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-        <div className="flex justify-between w-full">
-          <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">{(currentPage - 1) * recordsPerPage + 1}</span>
-            {' '}-{' '}
-            <span className="font-medium">
-              {Math.min(currentPage * recordsPerPage, filteredRecords.length)}
-            </span>
-            {' '}of{' '}
-            <span className="font-medium">{filteredRecords.length}</span> results
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-600">
+          Mostrando <span className="font-semibold text-slate-950">{firstResult}</span> -{' '}
+          <span className="font-semibold text-slate-950">{lastResult}</span> de{' '}
+          <span className="font-semibold text-slate-950">{filteredRecords.length}</span> registros
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1 || !hasRecords}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Pagina anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || !hasRecords}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Pagina siguiente"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>

@@ -1,148 +1,186 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Fuel, Droplet, User, MapPin, FileText } from 'lucide-react';
-import type { FuelRecord } from '../types';
+import { ClipboardPlus, Droplet, FileText, MapPin, RotateCcw, Save, Truck, User } from 'lucide-react';
+import type { Equipment, FuelRecord } from '../types';
 
 type FuelFormProps = {
+  equipment: Equipment[];
   onSubmit: (data: Omit<FuelRecord, 'id'>) => void;
 };
 
-export default function FuelForm({ onSubmit }: FuelFormProps) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+type FuelFormValues = Omit<FuelRecord, 'id' | 'timestamp' | 'quantity'> & {
+  timestamp: string;
+  quantity: string;
+};
 
-  const handleFormSubmit = (data: any) => {
+const inputClass =
+  'mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100';
+
+export default function FuelForm({ equipment, onSubmit }: FuelFormProps) {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FuelFormValues>({
+    defaultValues: {
+      fuelType: 'DIESEL',
+      unit: 'LITERS',
+    },
+  });
+
+  const handleFormSubmit = (data: FuelFormValues) => {
     onSubmit({
       ...data,
       timestamp: new Date(data.timestamp),
-      quantity: parseFloat(data.quantity)
+      quantity: parseFloat(data.quantity),
+      notes: data.notes?.trim() || undefined,
     });
-    reset();
+    reset({ fuelType: 'DIESEL', unit: 'LITERS' });
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-        <Fuel className="mr-2" /> New Fuel Record
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date and Time
-          </label>
-          <input
-            type="datetime-local"
-            {...register('timestamp', { required: true })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          {errors.timestamp && <span className="text-red-500 text-sm">Required field</span>}
+    <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="rounded-md border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-md bg-cyan-500/20 text-cyan-200">
+          <ClipboardPlus className="h-6 w-6" />
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <Droplet className="inline-block w-4 h-4 mr-1" /> Fuel Type
-          </label>
-          <select
-            {...register('fuelType', { required: true })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select fuel type</option>
-            <option value="DIESEL">Diesel</option>
-            <option value="GAS">Gas</option>
-          </select>
-          {errors.fuelType && <span className="text-red-500 text-sm">Required field</span>}
+        <h2 className="mt-5 text-2xl font-bold">Nuevo abastecimiento</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          Registra carga de combustible por equipo, turno y ubicacion. Estos datos alimentan el dashboard ejecutivo
+          y el historial de consumo operacional.
+        </p>
+        <div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-sm text-slate-300">
+          <div className="flex items-center gap-3">
+            <Truck className="h-4 w-4 text-cyan-300" />
+            Equipos de patio, muelle y apoyo logistico
+          </div>
+          <div className="flex items-center gap-3">
+            <Droplet className="h-4 w-4 text-cyan-300" />
+            Diesel y gas con unidad controlada
+          </div>
+          <div className="flex items-center gap-3">
+            <MapPin className="h-4 w-4 text-cyan-300" />
+            Trazabilidad por zona portuaria
+          </div>
         </div>
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Machine ID
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">Fecha y hora</span>
+            <input
+              type="datetime-local"
+              {...register('timestamp', { required: true })}
+              className={inputClass}
+            />
+            {errors.timestamp && <span className="mt-1 block text-xs font-medium text-red-600">Campo requerido</span>}
           </label>
-          <input
-            type="text"
-            {...register('machineId', { required: true })}
-            placeholder="Enter machine ID"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          {errors.machineId && <span className="text-red-500 text-sm">Required field</span>}
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quantity
+          <label className="block">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Droplet className="h-4 w-4 text-cyan-700" />
+              Combustible
+            </span>
+            <select {...register('fuelType', { required: true })} className={inputClass}>
+              <option value="DIESEL">Diesel</option>
+              <option value="GAS">Gas</option>
+            </select>
+            {errors.fuelType && <span className="mt-1 block text-xs font-medium text-red-600">Campo requerido</span>}
           </label>
-          <div className="flex">
+
+          <label className="block">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Truck className="h-4 w-4 text-cyan-700" />
+              Equipo
+            </span>
+            <select {...register('machineId', { required: true })} className={inputClass}>
+              <option value="">Seleccionar equipo</option>
+              {equipment.map(item => (
+                <option key={item.id} value={item.code}>
+                  {item.code} - {item.name}
+                </option>
+              ))}
+            </select>
+            {errors.machineId && <span className="mt-1 block text-xs font-medium text-red-600">Campo requerido</span>}
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">Cantidad</span>
             <input
               type="number"
               step="0.01"
+              min="0"
               {...register('quantity', { required: true, min: 0 })}
-              placeholder="Enter quantity"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+              placeholder="0"
+              className={inputClass}
             />
-            <select
-              {...register('unit', { required: true })}
-              className="px-4 py-2 border border-l-0 border-gray-300 rounded-r-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
-            >
-              <option value="LITERS">Liters</option>
-              <option value="GALLONS">Gallons</option>
+            {errors.quantity && <span className="mt-1 block text-xs font-medium text-red-600">Ingrese un valor valido</span>}
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">Unidad</span>
+            <select {...register('unit', { required: true })} className={inputClass}>
+              <option value="LITERS">Litros</option>
+              <option value="GALLONS">Galones</option>
             </select>
-          </div>
-          {errors.quantity && <span className="text-red-500 text-sm">Required field</span>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <User className="inline-block w-4 h-4 mr-1" /> Operator
           </label>
-          <input
-            type="text"
-            {...register('operator', { required: true })}
-            placeholder="Enter operator name"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          {errors.operator && <span className="text-red-500 text-sm">Required field</span>}
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <MapPin className="inline-block w-4 h-4 mr-1" /> Location
+          <label className="block">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <User className="h-4 w-4 text-cyan-700" />
+              Operador / turno
+            </span>
+            <input
+              type="text"
+              {...register('operator', { required: true })}
+              placeholder="Ej: Turno Norte"
+              className={inputClass}
+            />
+            {errors.operator && <span className="mt-1 block text-xs font-medium text-red-600">Campo requerido</span>}
           </label>
-          <input
-            type="text"
-            {...register('location', { required: true })}
-            placeholder="Enter location"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          {errors.location && <span className="text-red-500 text-sm">Required field</span>}
-        </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            <FileText className="inline-block w-4 h-4 mr-1" /> Notes
+          <label className="block md:col-span-2">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <MapPin className="h-4 w-4 text-cyan-700" />
+              Ubicacion operacional
+            </span>
+            <input
+              type="text"
+              {...register('location', { required: true })}
+              placeholder="Ej: Patio Contenedores A"
+              className={inputClass}
+            />
+            {errors.location && <span className="mt-1 block text-xs font-medium text-red-600">Campo requerido</span>}
           </label>
-          <textarea
-            {...register('notes')}
-            placeholder="Additional notes..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            rows={3}
-          />
-        </div>
-      </div>
 
-      <div className="mt-6 flex justify-end">
-        <button
-          type="button"
-          onClick={() => reset()}
-          className="mr-4 px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Clear
-        </button>
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Submit
-        </button>
-      </div>
-    </form>
+          <label className="block md:col-span-2 xl:col-span-1">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <FileText className="h-4 w-4 text-cyan-700" />
+              Observaciones
+            </span>
+            <textarea
+              {...register('notes')}
+              placeholder="Novedades del abastecimiento"
+              className={`${inputClass} min-h-10 resize-y`}
+              rows={1}
+            />
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={() => reset({ fuelType: 'DIESEL', unit: 'LITERS' })}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Limpiar
+          </button>
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+          >
+            <Save className="h-4 w-4" />
+            Guardar registro
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
